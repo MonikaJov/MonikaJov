@@ -447,10 +447,10 @@ def hsep(y: int, c: dict) -> str:
         f'stroke="{c["sec_ln"]}" stroke-width="1"/>'
     )
 
-def make_svg(s: dict, theme: str, ascii_lines: list = None) -> str:
+def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False) -> str:
     c = THEMES[theme]
 
-    langs_str  = ", ".join(s["langs"]) if s["langs"] else "—"
+    langs_str   = ", ".join(s["langs"]) if s["langs"] else "—"
     commits_str = f"{s['commits']:,}"  if s["commits"]  else "—"
     prs_str     = f"{s['prs']:,}"      if s["prs"]      else "—"
     cont_str    = f"{s['contribs']:,}" if s["contribs"] else "—"
@@ -483,8 +483,8 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None) -> str:
         ("__LOC__",        ""),
     ]
 
-    # ── Y layout ───────────────────────────────────────────────────────────────
-    GAP = 8   # extra vertical space before each section header
+    # ── Y layout (stats panel — same for both orientations) ───────────────────
+    GAP = 8
 
     def lay(rows, start_y):
         ys = []
@@ -512,20 +512,38 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None) -> str:
     stats_ys, y  = lay(STATS, y)
 
     ascii_lines = ascii_lines or []
-    art_w   = int(max((len(l) for l in ascii_lines), default=0) * ASCII_CHAR_W)
-    art_h   = len(ascii_lines) * LINE_H
-    art_off = (ASCII_PAD + art_w + ASCII_GAP) if ascii_lines else 0
-    total_w = art_off + W
-    total_h = max(y + 10, IX + art_h + 10)
+    art_w = int(max((len(l) for l in ascii_lines), default=0) * ASCII_CHAR_W)
+    art_h = len(ascii_lines) * LINE_H
 
-    # ── Render ─────────────────────────────────────────────────────────────────
+    # ── Dimensions ────────────────────────────────────────────────────────────
+    if mobile and ascii_lines:
+        # Portrait: fox on top centred in W, stats below
+        fox_pad   = max(ASCII_PAD, (W - art_w) // 2)
+        stats_off = IX + art_h + 16   # y-offset for the stats group
+        total_w   = W
+        total_h   = stats_off + y + 10
+    else:
+        # Landscape: fox left, stats right
+        art_off   = (ASCII_PAD + art_w + ASCII_GAP) if ascii_lines else 0
+        total_w   = art_off + W
+        total_h   = max(y + 10, IX + art_h + 10)
+
+    # ── Render ────────────────────────────────────────────────────────────────
     els = []
 
-    # ASCII avatar panel
-    if ascii_lines:
+    if mobile and ascii_lines:
+        # Fox centred at top
+        els.append(avatar.render(ascii_lines, theme, c["bg"],
+                                 pad=fox_pad, ix=IX, line_h=LINE_H,
+                                 font_size=FS, font=FONT))
+        # Stats panel shifted down below the fox
+        els.append(f'<g transform="translate(0, {stats_off})">')
+    elif ascii_lines:
+        # Fox on the left
         els.append(avatar.render(ascii_lines, theme, c["bg"],
                                  pad=ASCII_PAD, ix=IX, line_h=LINE_H,
                                  font_size=FS, font=FONT))
+        # Stats panel shifted right
         els.append(f'<g transform="translate({art_off}, 0)">')
 
     # Title
@@ -585,14 +603,16 @@ def main():
 
     os.makedirs(OUT, exist_ok=True)
     for theme in ("dark", "light"):
-        path       = os.path.join(OUT, f"neofetch-{theme}.svg")
         ascii_path = os.path.join(OUT, f"fox-{theme}.txt")
         art        = avatar.load(ascii_path)
         if not art:
             print(f"  ⚠ {ascii_path} not found — SVG will be stats-only")
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(make_svg(stats, theme, art))
-        print(f"✓ {os.path.relpath(path, ROOT)}")
+        for mobile in (False, True):
+            suffix = f"{'mobile-' if mobile else ''}{theme}"
+            path   = os.path.join(OUT, f"neofetch-{suffix}.svg")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(make_svg(stats, theme, art, mobile=mobile))
+            print(f"✓ {os.path.relpath(path, ROOT)}")
 
 if __name__ == "__main__":
     main()
