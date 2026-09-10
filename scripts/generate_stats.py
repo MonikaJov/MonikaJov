@@ -24,7 +24,7 @@ import avatar   # ASCII art panel — edit scripts/avatar.py to customise
 
 # ── Config ────────────────────────────────────────────────────────────────────
 USERNAME = "MonikaJov"
-LINKEDIN = "linkedin.com/in/jomonika"
+LINKEDIN = "linkedin.com/in/MonikaJov"
 EMAIL    = "monika.jovevska.23@gmail.com"
 LOCATION = "Skopje, North Macedonia"
 SPEAKS   = "English, Macedonian"
@@ -171,6 +171,7 @@ def fetch_loc(repos):
     return total_a, total_d
 
 EXCLUDE_LANGS = {"HTML", "Blade"}
+INCLUDE_LANGS = ["SQL"]   # always shown, regardless of GitHub's linguist detection
 
 def fetch_languages(repos):
     lang_sizes: dict = {}
@@ -181,7 +182,11 @@ def fetch_languages(repos):
         for lang, size in langs.items():
             if lang not in EXCLUDE_LANGS:
                 lang_sizes[lang] = lang_sizes.get(lang, 0) + size
-    return [l for l, _ in sorted(lang_sizes.items(), key=lambda x: -x[1])[:5]]
+    top = [l for l, _ in sorted(lang_sizes.items(), key=lambda x: -x[1])[:4]]
+    for lang in INCLUDE_LANGS:
+        if lang not in top:
+            top.append(lang)
+    return top
 
 def fetch_search_count(query: str) -> int:
     """Return total_count from GitHub Search API for the given query string."""
@@ -359,7 +364,6 @@ IX     = 10        # horizontal padding inside stats panel
 LINE_H = 15        # row height
 FS     = 14        # info row font size
 FS_S   = 13        # section header font size
-FS_T   = 16        # title font size
 # Each char in Courier New at FS_S≈13px is ~7.8px wide
 CHARS  = int((W - IX * 2) / 7.8)   # ≈ 56
 
@@ -483,8 +487,9 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
         ("__LOC__",        ""),
     ]
 
-    # ── Y layout (stats panel — same for both orientations) ───────────────────
-    GAP = 8
+    # ── Y layout ──────────────────────────────────────────────────────────────
+    GAP      = 8
+    PROMPT_H = LINE_H + 10   # prompt strip height at top of card
 
     def lay(rows, start_y):
         ys = []
@@ -494,6 +499,7 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
             ys.append(y)
         return ys, y
 
+    # Stats panel y-coords are relative (inside their own <g> translate)
     y           = 28
     title_y     = y
     y          += 16
@@ -515,40 +521,43 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
     art_w = int(max((len(l) for l in ascii_lines), default=0) * ASCII_CHAR_W)
     art_h = len(ascii_lines) * LINE_H
 
-    # ── Dimensions ────────────────────────────────────────────────────────────
+    # ── Dimensions (everything shifted down by PROMPT_H) ──────────────────────
     if mobile and ascii_lines:
-        # Portrait: fox on top centred in W, stats below
         fox_pad   = max(ASCII_PAD, (W - art_w) // 2)
-        stats_off = IX + art_h + 16   # y-offset for the stats group
+        stats_off = PROMPT_H + IX + art_h + 16
         total_w   = W
         total_h   = stats_off + y + 10
     else:
-        # Landscape: fox left, stats right
-        art_off   = (ASCII_PAD + art_w + ASCII_GAP) if ascii_lines else 0
-        total_w   = art_off + W
-        total_h   = max(y + 10, IX + art_h + 10)
+        art_off = (ASCII_PAD + art_w + ASCII_GAP) if ascii_lines else 0
+        total_w = art_off + W
+        total_h = PROMPT_H + max(y + 10, IX + art_h + 10)
 
     # ── Render ────────────────────────────────────────────────────────────────
     els = []
 
+    # Prompt strip — full card width, above fox and stats
+    prompt_y = PROMPT_H - 4
+    els.append(
+        f'<text x="{ASCII_PAD}" y="{prompt_y}" font-family="{FONT}" font-size="{FS_S}">'
+        f'<tspan fill="{c["label"]}" font-weight="600">monika@jovevska</tspan>'
+        f'<tspan fill="{c["colon"]}">:~$ </tspan>'
+        f'<tspan fill="{c["value"]}">neofetch --expose-skills --ascii_distro jovka</tspan>'
+        f'</text>'
+    )
     if mobile and ascii_lines:
-        # Fox centred at top
         els.append(avatar.render(ascii_lines, theme, c["bg"],
-                                 pad=fox_pad, ix=IX, line_h=LINE_H,
+                                 pad=fox_pad, ix=PROMPT_H + IX, line_h=LINE_H,
                                  font_size=FS, font=FONT))
-        # Stats panel shifted down below the fox
         els.append(f'<g transform="translate(0, {stats_off})">')
     elif ascii_lines:
-        # Fox on the left
         els.append(avatar.render(ascii_lines, theme, c["bg"],
-                                 pad=ASCII_PAD, ix=IX, line_h=LINE_H,
+                                 pad=ASCII_PAD, ix=PROMPT_H + IX, line_h=LINE_H,
                                  font_size=FS, font=FONT))
-        # Stats panel shifted right
-        els.append(f'<g transform="translate({art_off}, 0)">')
+        els.append(f'<g transform="translate({art_off}, {PROMPT_H})">')
 
-    # Title
+    # Title + separator
     els.append(
-        f'<text x="{IX}" y="{title_y}" font-family="{FONT}" font-size="{FS_T}" '
+        f'<text x="{IX}" y="{title_y}" font-family="{FONT}" font-size="{FS}" '
         f'font-weight="bold" fill="{c["title"]}">monika@jovevska</text>'
     )
     els.append(hsep(sep1_y, c))
@@ -602,11 +611,13 @@ def main():
             print(f"  {k:<14}: {v}")
 
     os.makedirs(OUT, exist_ok=True)
+
     for theme in ("dark", "light"):
         ascii_path = os.path.join(OUT, f"fox-{theme}.txt")
         art        = avatar.load(ascii_path)
         if not art:
             print(f"  ⚠ {ascii_path} not found — SVG will be stats-only")
+
         for mobile in (False, True):
             suffix = f"{'mobile-' if mobile else ''}{theme}"
             path   = os.path.join(OUT, f"neofetch-{suffix}.svg")
