@@ -362,10 +362,9 @@ W      = 460       # stats panel width
 FONT   = "'Courier New', Courier, monospace"
 IX     = 10        # horizontal padding inside stats panel
 LINE_H = 15        # row height
-FS     = 14        # info row font size
-FS_S   = 13        # section header font size
-# Each char in Courier New at FS_S≈13px is ~7.8px wide
-CHARS  = int((W - IX * 2) / 7.8)   # ≈ 56
+FS     = 14        # font size (all rows)
+# Each char in Courier New at FS≈14px is ~8.4px wide
+CHARS  = int((W - IX * 2) / 8.4)   # ≈ 52
 
 # ASCII art panel settings
 ASCII_PAD    = 6    # left padding before art
@@ -413,7 +412,7 @@ def section_hdr(name: str, c: dict, y: int) -> str:
     n_dashes = max(0, CHARS - len(prefix) - len(name) - 1)
     suffix   = " " + "─" * n_dashes
     return (
-        f'<text x="{IX}" y="{y}" font-family="{FONT}" font-size="{FS_S}">'
+        f'<text x="{IX}" y="{y}" font-family="{FONT}" font-size="{FS}">'
         f'<tspan fill="{c["sec_ln"]}">{xe(prefix)}</tspan>'
         f'<tspan fill="{c["sec_nm"]}" font-weight="600">{xe(name)}</tspan>'
         f'<tspan fill="{c["sec_ln"]}">{xe(suffix)}</tspan>'
@@ -538,7 +537,7 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
     # Prompt strip — full card width, above fox and stats
     prompt_y = PROMPT_H - 4
     els.append(
-        f'<text x="{ASCII_PAD}" y="{prompt_y}" font-family="{FONT}" font-size="{FS_S}">'
+        f'<text x="{ASCII_PAD}" y="{prompt_y}" font-family="{FONT}" font-size="{FS}">'
         f'<tspan fill="{c["label"]}" font-weight="600">monika@jovevska</tspan>'
         f'<tspan fill="{c["colon"]}">:~$ </tspan>'
         f'<tspan fill="{c["value"]}">neofetch --expose-skills --ascii_distro jovka</tspan>'
