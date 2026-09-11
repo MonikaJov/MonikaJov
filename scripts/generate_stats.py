@@ -1,17 +1,7 @@
 #!/usr/bin/env python3
-"""
-Generate neofetch-style SVG cards for the GitHub profile README.
-3-section layout: About · Contact · GitHub Stats
+"""Generate neofetch-style SVG cards for the GitHub profile README."""
 
-Run:    python3 scripts/generate_stats.py
-Env:    GITHUB_TOKEN  — contribution counts (auto-provided by GitHub Actions)
-        GH_PAT        — personal access token with `repo` scope (enables
-                         private repo LOC stats; add as a repo secret)
-
-Output: assets/neofetch-dark.svg
-        assets/neofetch-light.svg
-"""
-
+import hashlib
 import json
 import os
 import sys
@@ -34,8 +24,7 @@ SPEAKS   = "English, Macedonian"
 PAT   = os.environ.get("GH_PAT", "")
 TOKEN = PAT or os.environ.get("GITHUB_TOKEN", "")
 
-# Experience thresholds based on years on GitHub
-# Intermediate spans 2-7 years — reflects real industry middle-ground
+# Experience level thresholds, in years on GitHub
 LEVELS = [
     (0,    2.0, "Junior"),
     (2.0,  7.0, "Intermediate"),
@@ -139,36 +128,90 @@ def fetch_repos():
         page += 1
     return repos
 
-def fetch_loc(repos):
-    """
-    Sum lines added/deleted for USERNAME across all repos via stats/contributors.
-    GitHub computes stats lazily and may return 202 on first call; we retry.
-    Skipped entirely when no token is set (unauthenticated requests hit strict
-    rate limits which make the retry loop prohibitively slow).
-    """
+LOC_CACHE_PATH = os.path.join(ROOT, "scripts", "loc_cache.json")
+
+def loc_repo_list():
+    """All repos owned/collaborated/org-affiliated with USERNAME (REST, not GraphQL — GraphQL's ownerAffiliations silently misses some repos)."""
+    repos, page = [], 1
+    while True:
+        chunk = api(
+            "/user/repos?affiliation=owner,collaborator,organization_member"
+            f"&per_page=100&page={page}"
+        ) or []
+        repos.extend(chunk)
+        if len(chunk) < 100:
+            return repos
+        page += 1
+
+def loc_walk_repo(owner, name):
+    """Sums added/deleted for USERNAME via stats/contributors (matches Insights graph; GraphQL per-commit diffs return 0 on large commits, so avoid that)."""
+    for attempt in range(4):
+        status, data = api_raw(f"/repos/{owner}/{name}/stats/contributors")
+        if status == 200 and isinstance(data, list):
+            added = deleted = 0
+            for c in data:
+                if (c.get("author") or {}).get("login", "").lower() == USERNAME.lower():
+                    for w in c.get("weeks", []):
+                        added   += w.get("a", 0)
+                        deleted += w.get("d", 0)
+            return added, deleted, True
+        elif status == 202:
+            time.sleep(3 * (attempt + 1))
+        else:
+            break
+    return 0, 0, False
+
+def _repo_key(name: str) -> str:
+    """Hashes 'owner/repo' so private repo/org names never land in the (public) committed cache."""
+    return hashlib.sha256(name.encode("utf-8")).hexdigest()
+
+def load_loc_cache():
+    try:
+        with open(LOC_CACHE_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def save_loc_cache(cache):
+    with open(LOC_CACHE_PATH, "w") as f:
+        json.dump(cache, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+def fetch_loc():
+    """Sums LOC across all affiliated repos; caches per-repo by pushed_at, skipping unchanged repos and keeping stale-but-cached totals on failure."""
     if not TOKEN:
         print("  LOC: skipped (no token) — will be filled by GitHub Action")
         return 0, 0
 
-    total_a = total_d = 0
-    ok = 0
+    repos = loc_repo_list()
+    cache = load_loc_cache()
+    stale = 0
+
     for repo in repos:
-        rname = repo["name"]
-        for attempt in range(4):
-            status, data = api_raw(f"/repos/{USERNAME}/{rname}/stats/contributors")
-            if status == 200 and isinstance(data, list):
-                for c in data:
-                    if (c.get("author") or {}).get("login", "").lower() == USERNAME.lower():
-                        for w in c.get("weeks", []):
-                            total_a += w.get("a", 0)
-                            total_d += w.get("d", 0)
-                ok += 1
-                break
-            elif status == 202:
-                time.sleep(3 * (attempt + 1))
-            else:
-                break
-    print(f"  LOC: {ok}/{len(repos)} repos counted")
+        name = repo["full_name"]
+        key  = _repo_key(name)
+        pushed_at = repo.get("pushed_at") or ""
+
+        cached = cache.get(key)
+        if cached and cached.get("pushed_at") == pushed_at:
+            continue  # unchanged since last run — reuse cached total
+
+        owner, repo_name = name.split("/", 1)
+        added, deleted, ok = loc_walk_repo(owner, repo_name)
+        if ok:
+            cache[key] = {"pushed_at": pushed_at, "added": added, "deleted": deleted}
+        else:
+            stale += 1
+            if cached is None:
+                cache[key] = {"pushed_at": pushed_at, "added": 0, "deleted": 0}
+
+    save_loc_cache(cache)
+    if stale:
+        print(f"  LOC: {stale} repo(s) stale this run (kept cached value)")
+
+    total_a = sum(v["added"] for v in cache.values())
+    total_d = sum(v["deleted"] for v in cache.values())
+    print(f"  LOC: {len(cache)} repos tracked, {len(repos) - stale} fresh this run")
     return total_a, total_d
 
 EXCLUDE_LANGS = {"HTML", "Blade"}
@@ -330,8 +373,8 @@ def fetch():
     print("• coding time (recent events)")
     coding_time = fetch_coding_time()
 
-    print(f"• lines of code ({len(originals)} repos)")
-    loc_added, loc_deleted = fetch_loc(originals)
+    print("• lines of code (owner + collaborator + org repos)")
+    loc_added, loc_deleted = fetch_loc()
 
     return {
         "created_at":  created_at,

@@ -20,6 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Restore LOC cache
+        uses: actions/cache@v4
+        with:
+          path: scripts/loc_cache.json
+          key: loc-cache-${{ github.run_id }}
+          restore-keys: |
+            loc-cache-
+
       - name: Generate neofetch SVGs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
