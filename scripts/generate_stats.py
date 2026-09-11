@@ -24,6 +24,7 @@ import avatar   # ASCII art panel — edit scripts/avatar.py to customise
 
 # ── Config ────────────────────────────────────────────────────────────────────
 USERNAME = "MonikaJov"
+TITLE    = "monika@jovevska"
 LINKEDIN = "linkedin.com/in/MonikaJov"
 EMAIL    = "monika.jovevska.23@gmail.com"
 LOCATION = "Skopje, North Macedonia"
@@ -376,7 +377,6 @@ THEMES = {
         bg      = "#0d1117",
         border  = "#21262d",
         title   = "#FFFFFF",
-        sec_ln  = "#30363d",
         sec_nm  = "#FFFFFF",
         label   = "#F0C060",
         colon   = "#8b949e",
@@ -388,7 +388,6 @@ THEMES = {
         bg      = "#ffffff",
         border  = "#d0d7de",
         title   = "#1a1a1a",
-        sec_ln  = "#d0d7de",
         sec_nm  = "#1a1a1a",
         label   = "#8B3A10",
         colon   = "#57606a",
@@ -407,15 +406,15 @@ def xe(s: str) -> str:
     )
 
 def section_hdr(name: str, c: dict, y: int) -> str:
-    prefix = "── "
+    prefix = "-- "
     # pad dashes so the full line fills CHARS characters
     n_dashes = max(0, CHARS - len(prefix) - len(name) - 1)
-    suffix   = " " + "─" * n_dashes
+    suffix   = " " + "-" * n_dashes
     return (
         f'<text x="{IX}" y="{y}" font-family="{FONT}" font-size="{FS}">'
-        f'<tspan fill="{c["sec_ln"]}">{xe(prefix)}</tspan>'
+        f'<tspan fill="{c["colon"]}">{xe(prefix)}</tspan>'
         f'<tspan fill="{c["sec_nm"]}" font-weight="600">{xe(name)}</tspan>'
-        f'<tspan fill="{c["sec_ln"]}">{xe(suffix)}</tspan>'
+        f'<tspan fill="{c["colon"]}">{xe(suffix)}</tspan>'
         f'</text>'
     )
 
@@ -444,10 +443,11 @@ def info_row(label: str, value: str, c: dict, y: int) -> str:
         f'</text>'
     )
 
-def hsep(y: int, c: dict) -> str:
+def hsep(y: int, c: dict, width: int = len(TITLE)) -> str:
     return (
-        f'<line x1="{IX}" y1="{y}" x2="{W - IX}" y2="{y}" '
-        f'stroke="{c["sec_ln"]}" stroke-width="1"/>'
+        f'<text x="{IX}" y="{y}" font-family="{FONT}" font-size="{FS}">'
+        f'<tspan fill="{c["colon"]}">{"-" * width}</tspan>'
+        f'</text>'
     )
 
 def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False) -> str:
@@ -538,7 +538,7 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
     prompt_y = PROMPT_H - 4
     els.append(
         f'<text x="{ASCII_PAD}" y="{prompt_y}" font-family="{FONT}" font-size="{FS}">'
-        f'<tspan fill="{c["label"]}" font-weight="600">monika@jovevska</tspan>'
+        f'<tspan fill="{c["label"]}" font-weight="600">{TITLE}</tspan>'
         f'<tspan fill="{c["colon"]}">:~$ </tspan>'
         f'<tspan fill="{c["value"]}">neofetch --expose-skills --ascii_distro jovka</tspan>'
         f'</text>'
@@ -557,7 +557,7 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
     # Title + separator
     els.append(
         f'<text x="{IX}" y="{title_y}" font-family="{FONT}" font-size="{FS}" '
-        f'font-weight="bold" fill="{c["title"]}">monika@jovevska</text>'
+        f'font-weight="bold" fill="{c["title"]}">{TITLE}</text>'
     )
     els.append(hsep(sep1_y, c))
 
