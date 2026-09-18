@@ -19,6 +19,7 @@ LINKEDIN = "linkedin.com/in/MonikaJov"
 EMAIL    = "monika.jovevska.23@gmail.com"
 LOCATION = "Skopje, North Macedonia"
 SPEAKS   = "English, Macedonian"
+DISCORD  = "monikajov_"
 
 # Use GH_PAT if set (private repo access), otherwise GITHUB_TOKEN
 PAT   = os.environ.get("GH_PAT", "")
@@ -507,13 +508,13 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
         ("Role",          "Software Engineer"),
         ("Level",         s["level"]),
         ("Languages",     langs_str),
-        ("Education",     "FINKI, UKIM"),
         ("Joined GitHub", s["gh_age"]),
         ("Speaks",        s["speaks"] if "speaks" in s else SPEAKS),
     ]
     CONTACT = [
         ("Email",    s["email"] if "email" in s else EMAIL),
         ("LinkedIn", s["linkedin"] if "linkedin" in s else LINKEDIN),
+        ("Discord",  s["discord"] if "discord" in s else DISCORD),
         ("Location", s["location"] if "location" in s else LOCATION),
     ]
     streak_str = f"{s['streak']} days" if s.get("streak") else "—"
@@ -644,6 +645,7 @@ def main():
     # Merge in static config values not returned by fetch()
     stats.setdefault("email",    EMAIL)
     stats.setdefault("linkedin", LINKEDIN)
+    stats.setdefault("discord",  DISCORD)
     stats.setdefault("location", LOCATION)
     stats.setdefault("speaks",   SPEAKS)
 
