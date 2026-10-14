@@ -257,7 +257,7 @@ def fetch_commit_count() -> int:
 def fetch_contrib_stats(created_at: str) -> tuple:
     """Return (total_contribs, longest_streak_days) via a single GraphQL pass per year."""
     from datetime import date, timedelta
-    if not TOKEN:
+    if not TOKEN or not created_at:
         return 0, 0
 
     joined = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
@@ -347,6 +347,11 @@ def fetch_coding_time() -> str:
 
 
 def fetch():
+    global PAT, TOKEN
+    if PAT and api_raw("/user")[0] == 401:
+        print("⚠  GH_PAT rejected (401) — expired or revoked? Falling back to GITHUB_TOKEN")
+        PAT   = ""
+        TOKEN = os.environ.get("GITHUB_TOKEN", "")
     if not TOKEN:
         print("⚠  No GITHUB_TOKEN — stats will show '—'")
     if not PAT:

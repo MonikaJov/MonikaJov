@@ -6,5 +6,5 @@
 </picture></div>
 
 <div align="left">
-<img src="https://komarev.com/ghpvc/?username=MonikaJov&color=B04015&style=flat-square&label=profile+views" alt="profile views" width="0" height="0"/>
+<img src="https://komarev.com/ghpvc/?username=MonikaJov&color=B04015&style=flat-square&label=profile+views" alt="" width="0" height="0"/>
 </div>
