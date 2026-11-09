@@ -589,7 +589,7 @@ def make_svg(s: dict, theme: str, ascii_lines: list = None, mobile: bool = False
         f'<text x="{ASCII_PAD}" y="{prompt_y}" font-family="{FONT}" font-size="{FS}">'
         f'<tspan fill="{c["label"]}" font-weight="600">{TITLE}</tspan>'
         f'<tspan fill="{c["colon"]}">:~$ </tspan>'
-        f'<tspan fill="{c["value"]}">neofetch --expose-skills --ascii_distro jovka</tspan>'
+        f'<tspan fill="{c["value"]}">neofetch</tspan>'
         f'</text>'
     )
     if mobile and ascii_lines:
